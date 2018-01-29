@@ -1,3 +1,4 @@
 # ComputerVisionUsingMatlab
 
-First lab detects motion by doing intensity differences
+Mostly small computer vision experiments using Matlab.
+
