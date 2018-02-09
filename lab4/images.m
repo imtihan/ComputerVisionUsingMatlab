@@ -1,7 +1,7 @@
 %ims = image_cap(6,1);
 %imdfs = imagediff(ims);
 %[M] = opticflow(ims,imdfs, 8);
-tracker(10, 10);
+tracker(5, 40);
 function [ img_seq ] = image_cap( n_frames , time)
 % Takes a sequence of images over some time interval and returns a cell of
 % images converted to grayscale
@@ -18,17 +18,15 @@ end
 
 function [img_seq_difs] = imagediff(image_set)
 %motion
-    n_frames = length(image_set);
-    img_seq_difs = cell(n_frames-1, 1);
     %img_seq_difs = {};
-    for i = 1:n_frames-1
-        im = uint8(abs(double(image_set{i+1}) - double(image_set{i})));
-        im(im<60) = 0;
+    
+    im = (double(image_set{2}) - double(image_set{1}));
+    im(im<60) = 0;
        
-        img_seq_difs{i} = im;
+    img_seq_difs = im;
        % imshow(im);
        % drawnow;
-    end
+   
     
 end
 
@@ -75,34 +73,37 @@ end
 function [] = tracker(stepsize, maxiters)
     img_seq = cell(2,1);
     [success, im] = mexMTF2('get_frame');
-    img_seq{2} = rgb2gray(im);
+    im = rgb2gray(im);
+    img_seq{1} = im;
     imshow(im);
     rect = getrect();
     rectangle('Position',rect,'LineWidth',2,'LineStyle','--')
      
-    [imageHeight, imageWidth] = size(img_seq{2});
+    [imageHeight, imageWidth] = size(img_seq{1});
     [success, im] = mexMTF2('get_frame');
     Xa = (1 : imageWidth);
     Ya = (1 : imageHeight);
     [X,Y] = meshgrid(Xa,Ya);
       
     while 1
-        [success, im] = mexMTF2('get_frame');
-        img_seq{1} = img_seq{2};        %set current frame to last frame
-        img_seq{2}=rgb2gray(im);        %get new frame
-        imdiffarr = imagediff(img_seq);
-        imdiff = imdiffarr{1};
-        imdiffd=double(imdiff);
-        [IdX, IdY] = gradient(double(img_seq{2}));               % X, Y gradient of the whole image
+        [~, im] = mexMTF2('get_frame');
+        %im = imgaussfilt(im);
+        im = rgb2gray(im);
+        %img_seq{1} = img_seq{2};        %set current frame to last frame
+        img_seq{2}=im;        %get new frame
+        imdiffd = imagediff(img_seq);
+ 
+        %imdiffd=double(imdiff);
+        [IdX, IdY] = imgradient(double(img_seq{2}));               % X, Y gradient of the whole image
         
-         %get the block we are interested in
+         %get the block we are interested in         
          lowx = rect(1);
-         highx = rect(1) + rect(3);
+         highx =rect(1) + rect(3)-1;
          lowy = rect(2);
-         highy =rect(2) + rect(4);
+         highy =rect(2) + rect(4)-1;
          
          %iterate to threshold or tolerance here
-         for i = 1:maxiters
+         for k = 1:maxiters
       
              XQ = lowx:stepsize:highx;
              YQ = lowy:stepsize:highy;
@@ -115,27 +116,28 @@ function [] = tracker(stepsize, maxiters)
              Ix = reshape(VqX,[],1);   % X gradient of patch
              Iy = reshape(VqY, [],1);  % Y gradient of patch           
              It = reshape(Vqt, [], 1);   %gets temporal difference in patch
-             dI = [Ix, Iy];
+             dI = horzcat(Ix, Iy);
              
-             dP = (((dI')*dI))\(((It')*dI)');
-             lowx= lowx + dP(1);
-             lowy = lowy + dP(2);
-             highx = lowx + rect(3);
-             highy = lowy + rect(4);
+             dP = (((dI')*dI))\(dI'*It);
+             lowx= lowx - dP(1);
+             lowy = lowy - dP(2);
+             highx = lowx + rect(3)-1;
+             highy = lowy + rect(4)-1;
              
-             if( (dP(1)*dP(1) + dP(2)*dP(2) ) < 0.1)
+             if norm(dP,2) < 0.01
                  break
-             end 
-             
+             end     
          end
         
         rect(1) = lowx;
-        rect(2) = highx;
+        rect(2) = lowy;
            
-        imshow(im);
         hold on;
-        rectangle('Position',rect,'LineWidth',2,'LineStyle','--')
+        %im = uint8(abs(imdiffd));
+        imshow(im);
+        rectangle('Position',rect,'LineWidth',2,'LineStyle','--', 'EdgeColor','red')
         drawnow;
         hold off;
     end
+    
 end
