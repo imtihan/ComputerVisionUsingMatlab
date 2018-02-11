@@ -1,0 +1,41 @@
+When does it perform well/poorly?
+
+The tracker performs well for slow, deliberate movements. 
+This is likely due to noise caused by motion blur on fast movement in the frame
+giving noisy gradients.
+The tracker is also less prone to drifting when tracking smaller areas. The main reason 
+is likely since a larger area has many more pixels, there is much more noisy pixel data.
+With large iterations (more than 2 or 3) and a step-size of 1, the tracker overshot the tracked
+area if the area had small movement. Similarly, small iteration values with a small (1-5) stepsize yielded
+trackers that would lose the tracked object if the movement was not slow.
+Larger stepsizes, more than 5, would make the tracker move slowly, but the effect can be reduced with increased
+maximum iterations for the calculation. However, once we cross a step-size of about 14, the tracker drifts significantly,
+and does not follow the motion of the tracked object well at any maximum iterations. 
+
+The tracker does not work well if the environment is not well lit, 
+as the camera iso increases and becomes more light sensitive. This causes individual
+pixels to become noisy and the tracker erraneously detects that as motion.
+If the image is too bright, similar issues arise where the correct motion is not detected.
+If there is a shadow in the image and the tracked object goes between dark and light areas of the image,
+the tracker accumulates errors.
+
+If the tracked object is a single colour, the tracker performs significantly better than with textured areas.
+
+#################################################################################################
+What type of image processing operation might improve performance? 
+
+Applying a smoothing filter, such as a gaussian blur, can mitigate errors from noisy pixels.
+Since it averages movement with surrounding pixels, it smooths out the errors from noisy pixels.
+
+#################################################################################################
+What would be the advantages/disadvantages of using other warps (for example affine warps)?
+
+The weaknesses with the translational x-y tracker comes with its inability to detect rotation or scaling. 
+So if the camera is not directly overhead, it does not detect the perspective changes of the object such as stretching,
+instead it simply detects it as motion. When rotating an object, the tracker does not detect that at all, and it
+simply allows error accumulation in the tracker.
+
+Using an affine warp would allow the tracker to deal with stretching and rotation on top of the x-y directional motion.
+However, this would come at a computational cost, as the number of parameters we need to deal with increases from a 2x2 matrix,
+to a 2x3 matrix corresponding to adding rotation and scaling.
+
